@@ -23,14 +23,12 @@ typedef pair<ll,ll> P;
 #define curr(PP, i) PP[i]
 #define next(PP, i) PP[(i+1)%PP.size()]
 #define diff(PP, i) (next(PP, i) - curr(PP, i))
-#define X real()
-#define Y imag()
 
 typedef long long ll;
 typedef pair<ll, ll> P;
 
-const double EPS = 1e-10;
-const double EPS_GIG = 1e-5;
+const double EPS = 1e-8;
+const double EPS_GIG = 1e-3;
 const double PI = acos(-1.0);
 typedef complex<double> point;
 namespace std {
@@ -71,9 +69,9 @@ a → b で逆を向いて b → c ( または b == c )
 
 int ccw(point a, point b, point c) {
 	b -= a; c -= a;
-	if (cross(b, c) > 0)   return +1;       // counter clockwise
-	if (cross(b, c) < 0)   return -1;       // clockwise
-	if (dot(b, c) < 0)     return +2;       // c--a--b on line
+	if (cross(b, c) > EPS)   return +1;       // counter clockwise
+	if (cross(b, c) + EPS < 0)   return -1;       // clockwise
+	if (dot(b, c) + EPS < 0)     return +2;       // c--a--b on line
 	if (norm(b) < norm(c)) return -2;       // a--b--c on line
 	return 0;
 }
@@ -95,8 +93,8 @@ bool intersectSP(const segment &s, const point &p) {
 //端点の交差も考える
 bool intersectSS(const segment &s, const segment &t) {
 	if(intersectSP(s,t[0]) || intersectSP(s,t[1]) || intersectSP(t,s[0]) || intersectSP(t,s[1]))return true;
-	return ccw(s[0], s[1], t[0])*ccw(s[0], s[1], t[1]) <= 0 &&
-		ccw(t[0], t[1], s[0])*ccw(t[0], t[1], s[1]) <= 0;
+	return ccw(s[0], s[1], t[0]) * ccw(s[0], s[1], t[1]) + EPS <= 0 &&
+		ccw(t[0], t[1], s[0]) * ccw(t[0], t[1], s[1]) + EPS <= 0;
 }
 
 point projection(const segment &l, const point &p) {
@@ -163,9 +161,9 @@ int contains(const vector<point>& Poly, const point& p) {
 	for (int i = 0; i < Poly.size(); ++i) {
 		point a = curr(Poly, i) - p, b = next(Poly, i) - p;
 		if (imag(a) > imag(b)) swap(a, b);
-		if (imag(a) <= 0 && 0 < imag(b))
-			if (cross(a, b) < 0) in = !in;
-		if (cross(a, b) == 0 && dot(a, b) <= 0) return 1;
+		if (imag(a) + EPS <= 0 && EPS < imag(b))
+			if (cross(a, b) + EPS < 0) in = !in;
+		if (abs(cross(a, b)) < EPS && dot(a, b) + EPS <= 0) return 1;
 	}
 	return in ? 2 : 0;
 }
@@ -279,7 +277,7 @@ vector<point> convex_cut(const vector<point> P, const segment& l) {
   return Q;
 }
 
-//中心と二つの端点
+//扇型、中心と二つの端点
 struct sector {
 	point o;
 	point a, b;
@@ -287,138 +285,54 @@ struct sector {
 	sector(point O, point A, point B) :o(O), a(A), b(B) {}
 };
 
-//回転不可領域
-struct rotate_poly{
-	rotate_poly(){}
-	sector sec[4];
-	vector<point> p;
-};
+double L, sx, sy, gx, gy;
+int point_size = 0, n, r;
+vector<int> start_list;
+vector<int> dist;
+vector<int> goal_list;
+vector<segment> seg_list;
+vector<vector<P>> v;
+// 各回転時点での点候補(点, id)
+vector<vector<pair<point, int>>> r_point_list(20);
+// 各回転時点での四角形
+vector<vector<vector<point>>> r_square_list(20);
+// 各回転時点での線分
+vector<vector<segment>> r_segment_list(20);
+// 各回転時点での扇
+vector<vector<sector>> r_sector_list(20);
 
-int node_index;
-vector<int> g_index;
-vector < vector<pair<int, int>>> master_v(120 * 600);
-vector<vector<segment>> r_seg(12);
-vector<vector<segment>> rotate_seg(12);
-vector<vector<int>> rn_index(12);
-vector<vector<point>> rn_pos(12);
-vector<vector<rotate_poly>> r_poly(12);
-vector<vector<vector<point>>> r_squ(12);
-vector<segment> in_seg;
-point st,go;
-vector<int> master_d(12*600);
-double L;
-int r, sx, sy, gx, gy, n;
-set<pair<pair<int,int>,int>> edgeset;
-
-bool contain_sector(sector &sec,point &p){
-	point o = sec.o;
-	point a = sec.a;
-	point b = sec.b;
-	if(distancePP(p,o) > L )return false;
-	point vec = p - o;
-	point vecA = a - o;
-	point vecB = b - o;
-	if(angle(vec,vecA) <= angle(vecA,vecB) && angle(vec,vecB) <= angle(vecA,vecB))return true;
-	return false;
+void add_point_list(int rad_num, point p){
+	REP(i, r_square_list[rad_num].size()){
+		if(contains(r_square_list[rad_num][i], p) == 2)return;
+	}
+	r_point_list[rad_num].EB(p, point_size);
+	point_size++;
 }
 
-void check_visible(int index,point &p,int p_ind,int dist){
-	REP(i,rn_pos[index].size()){
-		if(rn_index[index][i] == p_ind)continue;
-		int a_ind = rn_index[index][i];
-		point pa = rn_pos[index][i];
-		segment n_seg = segment(pa,p);
-		bool flag = true;
-		REP(k,r_squ[index].size()){
-			if(block_off(p,pa,r_squ[index][k])){
-				flag = false;
-				break;
-			}
-		}
-		if(flag){
-			if(edgeset.count(MP(MP(min(a_ind,p_ind),max(a_ind,p_ind)),dist))){
-				continue;
-			}
-			edgeset.insert(MP(MP(min(a_ind,p_ind),max(a_ind,p_ind)),dist));
-			if(dist != 1)master_v[a_ind].PB(MP(p_ind,-dist));
-			if(dist != -1)master_v[p_ind].PB(MP(a_ind,dist));
-		}
-	}
-}
-
-rotate_poly make_rotate_poly(point vec,point next_vec,segment seg,int num){
-	point now_vec = seg[1] - seg[0];
-	point r_vec;
-	double radA = angle(now_vec,vec);
-	double radB = angle(now_vec,next_vec);
-	if((radA <= PI / 2 && radB >= PI / 2)||(radA >= PI/2 && radB <= PI/2)){
-		double tmp_rad = add_rad(atan2(now_vec.imag(),now_vec.real()),PI/2);
-		r_vec = rotate(point(L,0),tmp_rad);
-	}
-	else{
-		if(abs(radA - PI / 2) < abs(radB - PI / 2)){
-			r_vec = vec;
-		}
-		else{
-			r_vec = next_vec;
-		}
-	}
-	rotate_poly ret = rotate_poly();
-
-	vector<point> tmp;
-	tmp.PB(seg[0] + r_vec);
-	tmp.PB(seg[0] - r_vec);
-	tmp.PB(seg[1] - r_vec);
-	tmp.PB(seg[1] + r_vec);
-	tmp = convex_hull(tmp);
-	ret.p = tmp;
-
-	REP(i,4){
-		rotate_seg[num].PB(segment(tmp[i],tmp[(i+1)%4]));
-	}
-
-	ret.sec[0] = sector(seg[0],seg[0] + vec,seg[0] + next_vec);
-	ret.sec[1] = sector(seg[0],seg[0] - vec,seg[0] - next_vec);
-	ret.sec[2] = sector(seg[1],seg[1] + vec,seg[1] + next_vec);
-	ret.sec[3] = sector(seg[1],seg[1] - vec,seg[1] - next_vec);
-
-	return ret;
-}
-void make_visible_graph(int num) {
-
-	//スタートとゴール
-	rn_pos[num].PB(st);
-	rn_pos[num].PB(go);
-	rn_index[num].PB(node_index);
-	node_index++;
-	rn_index[num].PB(node_index);
-	g_index.PB(node_index);
-	node_index++;
-
-	//不可領域の作成
-	double rad = num * PI / (double)r;
-	double next_rad = ((num + 1) % r) * PI / (double)r;
+void make_r_segment_list_square_list(int rad_num) {
+	double rad = (double)rad_num * PI / r;
+	double next_rad = (double)((rad_num + 1) % r) * PI / r;
 	point vec = rotate(point(L, 0), rad);
 	point next_vec = rotate(point(L, 0), next_rad);
 
-
 	REP(i, n) {
-		segment now = in_seg[i];
+		segment now = seg_list[i];
 		point A = now[0];
 		point B = now[1];
 		point now_v = B - A;
 		vector<point> tmp;
 		if (isParallel(now_v,vec)) {
 			point rotated_vec = rotate(point(EPS_GIG,0),add_rad(rad,PI/2));
-			point C = A + vec;
-			point D = B - vec;
-			A -= vec;
-			B += vec;
-			if(abs(A - B) < abs(C - D)){A = C;B = D;}
-			tmp.PB(A + rotated_vec);
-			tmp.PB(A - rotated_vec);
-			tmp.PB(B + rotated_vec);
-			tmp.PB(B - rotated_vec);
+			point C, D;
+			if(norm(A - (B + vec)) > norm(A - (B - vec)))C = B + vec;
+			else C = B - vec;
+			if(norm(B - (A + vec)) > norm(B - (A - vec)))D = A + vec;
+			else D = A - vec;
+
+			tmp.PB(C + rotated_vec);
+			tmp.PB(C - rotated_vec);
+			tmp.PB(D + rotated_vec);
+			tmp.PB(D - rotated_vec);
 		}
 		else {
 			tmp.PB(A + vec);
@@ -427,128 +341,257 @@ void make_visible_graph(int num) {
 			tmp.PB(B - vec);
 		}
 		tmp = convex_hull(tmp);
-		r_squ[num].PB(tmp);
+		r_square_list[rad_num].EB(tmp);
 		REP(j, 4) {
-			r_seg[num].PB(segment(tmp[j], tmp[(j + 1) % 4]));
+			r_segment_list[rad_num].EB(tmp[j], tmp[(j + 1) % 4]);
 		}
-	}
-
-	REP(i, r_seg[num].size()) {
-		for(int j = i+1;j <  r_seg[num].size();j++) {
-			segment Aseg = r_seg[num][i];
-			segment Bseg = r_seg[num][j];
-			point tmp = crosspoint(Aseg,Bseg);
-			if(tmp == point(INF,INF))continue;
-			rn_pos[num].PB(tmp);
-			rn_index[num].PB(node_index);
-			node_index++;
-		}
-	}
-
-	//可視グラフ全探索
-	REP(i,rn_pos[num].size()){
-		check_visible(num,rn_pos[num][i],rn_index[num][i],0);
 	}
 }
 
-void Dijkstra() {
-	REP(i,master_d.size())master_d[i] = INF;
-	master_d[0] = 0;
-	priority_queue<P,vector<P>,greater<P>> pq;
-	pq.push(MP(0,0));
-	while(!pq.empty()){
-		P now = pq.top();pq.pop();
-		int now_d = now.FI;
-		int node = now.SE;
-		if(now_d > master_d[node])continue;
-		REP(i,master_v[node].size()){
-			int aite = master_v[node][i].FI;
-			int dist = master_v[node][i].SE;
-			if(master_d[aite] > master_d[node] + dist){
-				master_d[aite] = master_d[node] + dist;
-				pq.push(MP(master_d[aite],aite));
+void make_r_sector_list(int rad_num){
+	double rad = (double)rad_num * PI / r;
+	double next_rad = (double)((rad_num + 1) % r) * PI / r;
+	point vec = rotate(point(L, 0), rad);
+	point next_vec = rotate(point(L, 0), next_rad);
+
+	REP(i, seg_list.size()){
+		REP(j, 2){
+			auto p = seg_list[i][j];
+			r_sector_list[rad_num].EB(p, p + vec, p + next_vec);
+			r_sector_list[rad_num].EB(p, p - vec, p - next_vec);
+		}
+	}
+}
+
+void make_r_point_list(int rad_num) {
+	start_list.EB(point_size);
+	add_point_list(rad_num, point(sx, sy));
+	goal_list.EB(point_size);
+	add_point_list(rad_num, point(gx, gy));
+
+	REP(i, r_segment_list[rad_num].size()){
+		auto seg_a = r_segment_list[rad_num][i];
+		REP(j, i){
+			auto seg_b = r_segment_list[rad_num][j];
+			if(!intersectSS(seg_a, seg_b))continue;
+			auto p = crosspoint(seg_a, seg_b);
+			add_point_list(rad_num, p);
+			add_point_list((rad_num + 1) % r, p);
+			if(r > 2)add_point_list((rad_num + r - 1) % r, p);
+		}
+	}
+	REP(i, r_square_list[rad_num].size()){
+		REP(j, 4){
+			add_point_list(rad_num, r_square_list[rad_num][i][j]);
+			add_point_list((rad_num + 1) % r, r_square_list[rad_num][i][j]);
+			if(r > 2)add_point_list((rad_num + r - 1) % r, r_square_list[rad_num][i][j]);
+		}
+	}
+}
+
+bool check_visible(point p_a, point p_b, int rad_num) {
+	segment seg = segment(p_a, p_b);
+	point mid = point((p_a.real() + p_b.real()) / 2, (p_a.imag() + p_b.imag()) / 2);
+	REP(i, r_square_list[rad_num].size()){
+		int cou = 0;
+		bool flag = false;
+		if(contains(r_square_list[rad_num][i], mid) == 2)return false;
+		REP(j, 4){
+			point sq_pa = r_square_list[rad_num][i][j];
+			point sq_pb = r_square_list[rad_num][i][(j+1)%4];
+			segment sq_seg = segment(sq_pa, sq_pb);
+			if(intersectSP(sq_seg, p_a)){
+				flag = true;
+				continue;
+			}
+			if(intersectSP(sq_seg, p_b)){
+				flag = true;
+				continue;
+			}
+			if(intersectSS(sq_seg, seg))cou++;
+		}
+		if(cou > 1 || (flag && cou > 0))return false;
+	}
+	return true;
+}
+
+void make_visible_graph(int rad_num) {
+	REP(i, r_point_list[rad_num].size()){
+		auto p_a = r_point_list[rad_num][i].FI;
+		auto id_a = r_point_list[rad_num][i].SE;
+		REP(j, i){
+			auto p_b = r_point_list[rad_num][j].FI;
+			auto id_b = r_point_list[rad_num][j].SE;
+			if(check_visible(p_a, p_b, rad_num)){
+				v[id_a].EB(id_b, 0);
+				v[id_b].EB(id_a, 0);
 			}
 		}
 	}
 }
 
-bool contain_rotate_poly(rotate_poly poly,point p){
-	REP(i,4){
-		if(contain_sector(poly.sec[i],p))return true;
-	}
-	if(contains(poly.p,p) == 2)return true;
-
+bool contain_sector(sector &sec,point &p){
+	point o = sec.o;
+	point a = sec.a;
+	point b = sec.b;
+	if(distancePP(p,o) > L + EPS)return false;
+	point vec = p - o;
+	point vecA = a - o;
+	point vecB = b - o;
+	if(angle(vec,vecA) + EPS < angle(vecA,vecB) && angle(vec,vecB) + EPS < angle(vecA,vecB))return true;
 	return false;
 }
 
-bool check_totate_poly(int num,point p){
-	REP(i,r_poly[num].size()){
-		if(contain_rotate_poly(r_poly[num][i],p))return true;
+bool can_rotate(point p, int rad_num) {
+	int next_rad = (rad_num + 1) % r;
+	REP(i, r_square_list[rad_num].size()){
+		if(contains(r_square_list[rad_num][i], p) == 2)return false;
 	}
-	return false;
+	REP(i, r_square_list[next_rad].size()){
+		if(contains(r_square_list[next_rad][i], p) == 2)return false;
+	}
+	REP(i, r_sector_list[rad_num].size()){
+		if(contain_sector(r_sector_list[rad_num][i], p))return false;
+	}
+	return true;
 }
 
-void make_rotate_graph(int num){
+void make_rotate_graph(int rad_num) {
+	int next_rad = (rad_num + 1) % r;
+	REP(i, r_point_list[rad_num].size()){
+		point p_a = r_point_list[rad_num][i].FI;
+		int id_a = r_point_list[rad_num][i].SE;
+		REP(j, r_point_list[next_rad].size()){
+			point p_b = r_point_list[next_rad][j].FI;
+			int id_b = r_point_list[next_rad][j].SE;
 
-	//不可領域の作成
-	double rad = num * PI / (double)r;
-	double next_rad = (num + 1) * PI / (double)r;
-	point vec = rotate(point(L, 0), rad);
-	point next_vec = rotate(point(L, 0), next_rad);
-
-	//回転不可領域作成
-	REP(i,in_seg.size()){
-		r_poly[num].PB(make_rotate_poly(vec,next_vec,in_seg[i],num));
-	}
-
-	REP(i, rotate_seg[num].size()) {
-		for(int j = i+1;j <  rotate_seg[num].size();j++) {
-			segment Aseg = rotate_seg[num][i];
-			segment Bseg = rotate_seg[num][j];
-			point tmp = crosspoint(Aseg,Bseg);
-			if(tmp == point(INF,INF))continue;
-			if(check_totate_poly(num,tmp))continue;
-			check_visible(num,tmp,node_index,-1);
-			check_visible((num+1)%r,tmp,node_index,1);
-			node_index++;
+			if(norm(p_a - p_b) > EPS)continue;
+			if(can_rotate(p_a, rad_num)){
+				v[id_a].EB(id_b, 1);
+			}
 		}
 	}
 }
 
-int main() {
-	//入力
-	cin >> L >> r >> sx >> sy >> gx >> gy >> n;
-	st = point(sx,sy);
-	go = point(gx,gy);
-	REP(i, n) {
-		int a, b, c, d; cin >> a >> b >> c >> d;
-		point A = point(a, b);
-		point B = point(c, d);
-		in_seg.PB(segment(A, B));
+int Dijkstra() {
+	priority_queue<P, vector<P>, greater<>> pq;
+	pq.push(MP(0, 0));
+
+	while(!pq.empty()){
+		int d = pq.top().FI;
+		int id = pq.top().SE;
+		pq.pop();
+		REP(i, v[id].size()){
+			int aite = v[id][i].FI;
+			int cost = v[id][i].SE;
+			if(dist[aite] > d + cost){
+				dist[aite] = d + cost;
+				pq.push(MP(dist[aite], aite));
+			}
+		}
 	}
 
-	//各角度について、可視グラフを作成
+	int ret = INF;
+	REP(i, goal_list.size()){
+		ret = min(ret, dist[goal_list[i]]);
+	}
+	return ret;
+}
+
+void output_visible_graph() {
+	cout << r << endl;
+	REP(rad_num, r){
+		int m = r_point_list[rad_num].size();
+		cout << m << endl;
+		REP(i, m){
+			auto p = r_point_list[rad_num][i].FI;
+			cout << p.real() << " " << p.imag() << endl;
+		}
+		m = r_segment_list[rad_num].size();
+		cout << m << endl;
+		REP(i, m){
+			segment seg = r_segment_list[rad_num][i];
+			cout << seg[0].real() << " " << seg[0].imag() << " " << seg[1].real() << " " << seg[1].imag() << endl;
+		}
+		vector<segment> g;
+		REP(i, r_point_list[rad_num].size()){
+			auto p_a = r_point_list[rad_num][i].FI;
+			auto id_a = r_point_list[rad_num][i].SE;
+			REP(j, i){
+				auto p_b = r_point_list[rad_num][j].FI;
+				auto id_b = r_point_list[rad_num][j].SE;
+				if(check_visible(p_a, p_b, rad_num)){
+					g.EB(p_a, p_b);
+				}
+			}
+		}
+		m = g.size();
+		cout << m << endl;
+		REP(i, m){
+			segment seg = g[i];
+			cout << seg[0].real() << " " << seg[0].imag() << " " << seg[1].real() << " " << seg[1].imag() << endl;
+		}
+	}
+}
+
+void output_rotate_graph(){
+	cout << r << endl;
+	REP(rad_num, r){
+		int m = r_segment_list[rad_num].size();
+		cout << m << endl;
+		REP(i, m){
+			segment seg = r_segment_list[rad_num][i];
+			cout << seg[0].real() << " " << seg[0].imag() << " " << seg[1].real() << " " << seg[1].imag() << endl;
+		}
+		m = r_sector_list[rad_num].size();
+		cout << m << endl;
+		REP(i, m){
+			auto sec = r_sector_list[rad_num][i];
+			cout << sec.o.real() << " " << sec.o.imag() << " " << sec.a.real() << " " << sec.a.imag() << " " << sec.b.real() << " " << sec.b.imag() << endl;
+			cout << angle(sec.a - sec.o, point(L,0)) << " " << angle(sec.b - sec.o, point(L,0)) << " " << L << endl;
+		}
+	}
+}
+
+int main(){
+	cin.tie(0);cout.tie(0);ios::sync_with_stdio(false);
+
+	cin >> L >> r;
+	cin >> sx >> sy;
+	cin >> gx >> gy;
+
+	cin >> n;
+	REP(i, n){
+		double x1, y1, x2, y2;cin >> x1 >> y1 >> x2 >> y2;
+		seg_list.EB(point(x1, y1), point(x2, y2));
+	}
+
+	REP(i, r){
+		make_r_segment_list_square_list(i);
+		make_r_sector_list(i);
+	}
+	REP(i, r){
+		make_r_point_list(i);
+	}
+	v.resize(point_size);
+	dist.resize(point_size);
 	REP(i, r){
 		make_visible_graph(i);
-	}
-
-	REP(i,r){
 		make_rotate_graph(i);
 	}
 
-	//ダイクストラ
-	Dijkstra();
-	int ans = INF;
-	REP(i,g_index.size()){
-		ans = min(ans,master_d[g_index[i]]);
-	}
+/*
+	//output_visible_graph();
+	output_rotate_graph();
+	return 0;
+*/
 
-	if(ans == INF){
-		cout << -1 << endl;
-	}
-	else{
-		cout << ans / 2 << endl;
-	}
+	REP(i, point_size)dist[i] = INF;
+	dist[0] = 0;
+	int ans = Dijkstra();
+
+	if(ans == INF)cout << -1 << endl;
+	else cout << ans << endl;
 
 	return 0;
 }
