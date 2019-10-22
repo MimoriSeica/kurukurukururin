@@ -377,14 +377,12 @@ void make_r_point_list(int rad_num) {
 			auto p = crosspoint(seg_a, seg_b);
 			add_point_list(rad_num, p);
 			add_point_list((rad_num + 1) % r, p);
-			if(r > 2)add_point_list((rad_num + r - 1) % r, p);
 		}
 	}
 	REP(i, r_square_list[rad_num].size()){
 		REP(j, 4){
 			add_point_list(rad_num, r_square_list[rad_num][i][j]);
 			add_point_list((rad_num + 1) % r, r_square_list[rad_num][i][j]);
-			if(r > 2)add_point_list((rad_num + r - 1) % r, r_square_list[rad_num][i][j]);
 		}
 	}
 }
