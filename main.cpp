@@ -287,7 +287,6 @@ struct sector {
 
 double L, sx, sy, gx, gy;
 int point_size = 0, n, r;
-vector<int> start_list;
 vector<int> dist;
 vector<int> goal_list;
 vector<segment> seg_list;
@@ -367,10 +366,10 @@ void make_r_sector_list(int rad_num){
 }
 
 void make_r_point_list(int rad_num) {
-	start_list.EB(point_size);
 	add_point_list(rad_num, point(sx, sy));
-	goal_list.EB(point_size);
-	add_point_list(rad_num, point(gx, gy));
+	if(add_point_list(rad_num, point(gx, gy))){
+		goal_list.EB(point_size-1);
+	}
 
 	REP(i, r_segment_list[rad_num].size()){
 		auto seg_a = r_segment_list[rad_num][i];
