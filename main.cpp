@@ -301,12 +301,13 @@ vector<vector<segment>> r_segment_list(20);
 // 各回転時点での扇
 vector<vector<sector>> r_sector_list(20);
 
-void add_point_list(int rad_num, point p){
+bool add_point_list(int rad_num, point p){
 	REP(i, r_square_list[rad_num].size()){
-		if(contains(r_square_list[rad_num][i], p) == 2)return;
+		if(contains(r_square_list[rad_num][i], p) == 2)return false;
 	}
 	r_point_list[rad_num].EB(p, point_size);
 	point_size++;
+	return true;
 }
 
 void make_r_segment_list_square_list(int rad_num) {
@@ -375,13 +376,13 @@ void make_r_point_list(int rad_num) {
 			auto seg_b = r_segment_list[rad_num][j];
 			if(!intersectSS(seg_a, seg_b))continue;
 			auto p = crosspoint(seg_a, seg_b);
-			add_point_list(rad_num, p);
+			if(!add_point_list(rad_num, p))continue;
 			add_point_list((rad_num + 1) % r, p);
 		}
 	}
 	REP(i, r_square_list[rad_num].size()){
 		REP(j, 4){
-			add_point_list(rad_num, r_square_list[rad_num][i][j]);
+			if(add_point_list(rad_num, r_square_list[rad_num][i][j]))continue;
 			add_point_list((rad_num + 1) % r, r_square_list[rad_num][i][j]);
 		}
 	}
