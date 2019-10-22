@@ -27,7 +27,7 @@ typedef pair<ll,ll> P;
 typedef long long ll;
 typedef pair<ll, ll> P;
 
-const double EPS = 1e-8;
+const double EPS = 1e-7;
 const double EPS_GIG = 1e-3;
 const double PI = acos(-1.0);
 typedef complex<double> point;
@@ -88,7 +88,7 @@ bool intersectLP(const segment &l, const point &p) {
 	return abs(cross(l[1] - p, l[0] - p)) < EPS;
 }
 bool intersectSP(const segment &s, const point &p) {
-	return abs(s[0] - p) + abs(s[1] - p) - abs(s[1] - s[0]) < EPS; // triangle inequality
+	return ccw(s[0], p, s[1]) == -2; // triangle inequality
 }
 //端点の交差も考える
 bool intersectSS(const segment &s, const segment &t) {
@@ -301,6 +301,8 @@ vector<vector<segment>> r_segment_list(20);
 // 各回転時点での扇
 vector<vector<sector>> r_sector_list(20);
 
+bool can_rotate(point p, int rad_num);
+
 bool add_point_list(int rad_num, point p){
 	REP(i, r_square_list[rad_num].size()){
 		if(contains(r_square_list[rad_num][i], p) == 2)return false;
@@ -376,40 +378,42 @@ void make_r_point_list(int rad_num) {
 			auto seg_b = r_segment_list[rad_num][j];
 			if(!intersectSS(seg_a, seg_b))continue;
 			auto p = crosspoint(seg_a, seg_b);
-			if(!add_point_list(rad_num, p))continue;
-			add_point_list((rad_num + 1) % r, p);
+			add_point_list(rad_num, p);
+			if(can_rotate(p, rad_num)){
+				add_point_list((rad_num + r - 1) % r, p);
+			}
+			if(can_rotate(p, (rad_num + 1) % r)){
+				add_point_list((rad_num + 1) % r, p);
+			}
 		}
 	}
 	REP(i, r_square_list[rad_num].size()){
 		REP(j, 4){
-			if(add_point_list(rad_num, r_square_list[rad_num][i][j]))continue;
-			add_point_list((rad_num + 1) % r, r_square_list[rad_num][i][j]);
+			add_point_list(rad_num, r_square_list[rad_num][i][j]);
+			if(can_rotate(r_square_list[rad_num][i][j], rad_num)){
+				add_point_list((rad_num + r - 1) % r, r_square_list[rad_num][i][j]);
+			}
+			if(can_rotate(r_square_list[rad_num][i][j], (rad_num + 1) % r)){
+				add_point_list((rad_num + 1) % r, r_square_list[rad_num][i][j]);
+			}
 		}
 	}
 }
 
 bool check_visible(point p_a, point p_b, int rad_num) {
 	segment seg = segment(p_a, p_b);
-	point mid = point((p_a.real() + p_b.real()) / 2, (p_a.imag() + p_b.imag()) / 2);
+	point mid = (p_a + p_b) * 0.5;
 	REP(i, r_square_list[rad_num].size()){
 		int cou = 0;
 		bool flag = false;
-		if(contains(r_square_list[rad_num][i], mid) == 2)return false;
+		auto sq = r_square_list[rad_num][i];
+		if(contains(sq, mid) == 2)return false;
 		REP(j, 4){
-			point sq_pa = r_square_list[rad_num][i][j];
-			point sq_pb = r_square_list[rad_num][i][(j+1)%4];
-			segment sq_seg = segment(sq_pa, sq_pb);
-			if(intersectSP(sq_seg, p_a)){
-				flag = true;
-				continue;
-			}
-			if(intersectSP(sq_seg, p_b)){
-				flag = true;
-				continue;
-			}
-			if(intersectSS(sq_seg, seg))cou++;
+			if(ccw(sq[j], sq[(j+1)%4], seg[0]) *
+			   ccw(sq[j], sq[(j+1)%4], seg[1]) + EPS <= 0 &&
+			   ccw(seg[0], seg[1], sq[j]) *
+			   ccw(seg[0], seg[1], sq[(j+1)%4]) + EPS <= 0)return false;
 		}
-		if(cou > 1 || (flag && cou > 0))return false;
 	}
 	return true;
 }
@@ -434,10 +438,12 @@ bool contain_sector(sector &sec,point &p){
 	point a = sec.a;
 	point b = sec.b;
 	if(distancePP(p,o) > L + EPS)return false;
+	if(intersectSP(segment(o,a), p))return true;
+	if(intersectSP(segment(o,b), p))return true;
 	point vec = p - o;
 	point vecA = a - o;
 	point vecB = b - o;
-	if(angle(vec,vecA) + EPS < angle(vecA,vecB) && angle(vec,vecB) + EPS < angle(vecA,vecB))return true;
+	if(angle(vec,vecA) < angle(vecA,vecB) && angle(vec,vecB) < angle(vecA,vecB))return true;
 	return false;
 }
 
@@ -504,7 +510,8 @@ void output_visible_graph() {
 		cout << m << endl;
 		REP(i, m){
 			auto p = r_point_list[rad_num][i].FI;
-			cout << p.real() << " " << p.imag() << endl;
+			bool flag = can_rotate(p, rad_num);
+			cout << p.real() << " " << p.imag() << " " << flag << endl;
 		}
 		m = r_segment_list[rad_num].size();
 		cout << m << endl;
@@ -533,28 +540,8 @@ void output_visible_graph() {
 	}
 }
 
-void output_rotate_graph(){
-	cout << r << endl;
-	REP(rad_num, r){
-		int m = r_segment_list[rad_num].size();
-		cout << m << endl;
-		REP(i, m){
-			segment seg = r_segment_list[rad_num][i];
-			cout << seg[0].real() << " " << seg[0].imag() << " " << seg[1].real() << " " << seg[1].imag() << endl;
-		}
-		m = r_sector_list[rad_num].size();
-		cout << m << endl;
-		REP(i, m){
-			auto sec = r_sector_list[rad_num][i];
-			cout << sec.o.real() << " " << sec.o.imag() << " " << sec.a.real() << " " << sec.a.imag() << " " << sec.b.real() << " " << sec.b.imag() << endl;
-			cout << angle(sec.a - sec.o, point(L,0)) << " " << angle(sec.b - sec.o, point(L,0)) << " " << L << endl;
-		}
-	}
-}
-
 int main(){
 	cin.tie(0);cout.tie(0);ios::sync_with_stdio(false);
-
 	cin >> L >> r;
 	cin >> sx >> sy;
 	cin >> gx >> gy;
@@ -564,6 +551,7 @@ int main(){
 		double x1, y1, x2, y2;cin >> x1 >> y1 >> x2 >> y2;
 		seg_list.EB(point(x1, y1), point(x2, y2));
 	}
+	clock_t start = clock();
 
 	REP(i, r){
 		make_r_segment_list_square_list(i);
@@ -578,12 +566,11 @@ int main(){
 		make_visible_graph(i);
 		make_rotate_graph(i);
 	}
-
 /*
-	//output_visible_graph();
-	output_rotate_graph();
+	output_visible_graph();
 	return 0;
 */
+	cout << "point_size " << point_size << endl;
 
 	REP(i, point_size)dist[i] = INF;
 	dist[0] = 0;
@@ -591,6 +578,8 @@ int main(){
 
 	if(ans == INF)cout << -1 << endl;
 	else cout << ans << endl;
-
+	clock_t end = clock();
+	double time = static_cast<double>(end - start) / CLOCKS_PER_SEC * 1000.0;
+	cout << "time " << time << endl;
 	return 0;
 }
