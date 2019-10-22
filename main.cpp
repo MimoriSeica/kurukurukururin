@@ -378,10 +378,10 @@ void make_r_point_list(int rad_num) {
 			if(!intersectSS(seg_a, seg_b))continue;
 			auto p = crosspoint(seg_a, seg_b);
 			add_point_list(rad_num, p);
-			if(can_rotate(p, rad_num)){
+			if(can_rotate(p, (rad_num + r - 1) % r)){
 				add_point_list((rad_num + r - 1) % r, p);
 			}
-			if(can_rotate(p, (rad_num + 1) % r)){
+			if(can_rotate(p, rad_num)){
 				add_point_list((rad_num + 1) % r, p);
 			}
 		}
@@ -389,10 +389,10 @@ void make_r_point_list(int rad_num) {
 	REP(i, r_square_list[rad_num].size()){
 		REP(j, 4){
 			add_point_list(rad_num, r_square_list[rad_num][i][j]);
-			if(can_rotate(r_square_list[rad_num][i][j], rad_num)){
+			if(can_rotate(r_square_list[rad_num][i][j], (rad_num + r - 1) % r)){
 				add_point_list((rad_num + r - 1) % r, r_square_list[rad_num][i][j]);
 			}
-			if(can_rotate(r_square_list[rad_num][i][j], (rad_num + 1) % r)){
+			if(can_rotate(r_square_list[rad_num][i][j], rad_num)){
 				add_point_list((rad_num + 1) % r, r_square_list[rad_num][i][j]);
 			}
 		}
