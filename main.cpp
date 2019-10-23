@@ -135,12 +135,29 @@ double distancePP(const point &a,const point &b){
 }
 
 //交点
-point crosspoint(const segment &l, const segment &m) {
+point crosspointSS(const segment &l, const segment &m) {
 	double A = cross(l[1] - l[0], m[1] - m[0]);
 	double B = cross(l[1] - l[0], l[1] - m[0]);
 	if (abs(A) < EPS && abs(B) < EPS) return m[0]; // same line
 	if (abs(A) < EPS) return point(INF,INF); // !!!PRECONDITION NOT SATISFIED!!!
 	return m[0] + B / A * (m[1] - m[0]);
+}
+
+vector<point> crosspointCL(const circle &c, const segment &l) {
+	auto ret = vector<point>(2, point(INF, INF));
+	auto pro_p = projection(l, c.p);
+	auto dist = distanceLP(l, c.p);
+	if(abs(dist - c.r) < EPS){
+		ret[0] = pro_p;
+		return ret;
+	}
+	if(c.r < dist){
+		return ret;
+	}
+	point vec = (l[1] - l[0]) * sqrt(c.r * c.r - dist * dist) / abs(l[1] - l[0]);
+	ret[0] = pro_p + vec;
+	ret[1] = pro_p - vec;
+	return ret;
 }
 
 //凸包
@@ -279,7 +296,7 @@ vector<point> convex_cut(const vector<point> P, const segment& l) {
     point A = curr(P, i), B = next(P, i);
     if (ccw(l[0], l[1], A) != -1) Q.push_back(A);
     if (ccw(l[0], l[1], A)*ccw(l[0], l[1], B) < 0)
-      Q.push_back(crosspoint(segment(A, B), l));
+      Q.push_back(crosspointSS(segment(A, B), l));
   }
   return Q;
 }
@@ -288,8 +305,9 @@ vector<point> convex_cut(const vector<point> P, const segment& l) {
 struct sector {
 	point o;
 	point a, b;
+	double l;
 	sector(){}
-	sector(point O, point A, point B) :o(O), a(A), b(B) {}
+	sector(point O, point A, point B, double _l) :o(O), a(A), b(B), l(_l) {}
 };
 
 double L, sx, sy, gx, gy;
@@ -367,8 +385,8 @@ void make_r_sector_list(int rad_num){
 	REP(i, seg_list.size()){
 		REP(j, 2){
 			auto p = seg_list[i][j];
-			r_sector_list[rad_num].EB(p, p + vec, p + next_vec);
-			r_sector_list[rad_num].EB(p, p - vec, p - next_vec);
+			r_sector_list[rad_num].EB(p, p + vec, p + next_vec, L);
+			r_sector_list[rad_num].EB(p, p - vec, p - next_vec, L);
 		}
 	}
 }
@@ -384,7 +402,7 @@ void make_r_point_list(int rad_num) {
 		REP(j, i){
 			auto seg_b = r_segment_list[rad_num][j];
 			if(!intersectSS(seg_a, seg_b))continue;
-			auto p = crosspoint(seg_a, seg_b);
+			auto p = crosspointSS(seg_a, seg_b);
 			add_point_list(rad_num, p);
 		}
 	}
@@ -445,7 +463,7 @@ void make_rotate_point(int rad_num) {
 		REP(j, r_segment_list[next_rad].size()){
 			auto seg_b = r_segment_list[next_rad][j];
 			if(!intersectSS(seg_a, seg_b))continue;
-			auto p_a = crosspoint(seg_a, seg_b);
+			auto p_a = crosspointSS(seg_a, seg_b);
 			if(!can_rotate(p_a, rad_num))continue;
 			auto id_a = point_size;
 			add_point_list(rad_num, p_a);
