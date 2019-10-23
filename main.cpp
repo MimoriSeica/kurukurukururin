@@ -257,6 +257,21 @@ vector<point> crosspointCC(const circle c1, const circle c2) {
 	return ret;
 }
 
+vector<point> crosspointSecS(const sector sc, const segment s) {
+	circle c = circle(sc.o, sc.r);
+	auto ret = crosspointCL(c, s);
+	point inf = point(INF, INF);
+	REP(i, 2){
+		if(!(contain_sector(sc, ret[i]) || eq(sc.a, ret[i]) || eq(sc.b, ret[i]))){
+			ret[i] = inf;
+			continue;
+		}
+		if(!intersectSP(s, ret[i])){
+			ret[i] = inf;
+		}
+	}
+	return ret;
+}
 vector<point> crosspointSecSec(const sector sc1, const sector sc2) {
 	circle c1 = circle(sc1.o, sc1.r);
 	circle c2 = circle(sc2.o, sc2.r);
@@ -519,6 +534,46 @@ void make_rotate_point(int rad_num) {
 			add_rotate_point(p_a, id_a, rad_num);
 		}
 	}
+	REP(i, r_sector_list[rad_num].size()){
+		auto sc1 = r_sector_list[rad_num][i];
+		point inf = point(INF, INF);
+		REP(j, i){
+			auto sc2 = r_sector_list[rad_num][j];
+			auto tmp = crosspointSecSec(sc1, sc2);
+			REP(ii, 2){
+				if(eq(inf, tmp[ii]))continue;
+				if(!can_rotate(tmp[ii], rad_num))continue;
+				auto p_a = tmp[ii];
+				auto id_a = point_size;
+				add_point_list(rad_num, p_a);
+				add_rotate_point(p_a, id_a, rad_num);
+			}
+		}
+		REP(j, r_segment_list[rad_num].size()){
+			auto seg = r_segment_list[rad_num][j];
+			auto tmp = crosspointSecS(sc1, seg);
+			REP(ii, 2){
+				if(eq(inf, tmp[ii]))continue;
+				if(!can_rotate(tmp[ii], rad_num))continue;
+				auto p_a = tmp[ii];
+				auto id_a = point_size;
+				add_point_list(rad_num, p_a);
+				add_rotate_point(p_a, id_a, rad_num);
+			}
+		}
+		REP(j, r_segment_list[next_rad].size()){
+			auto seg = r_segment_list[next_rad][j];
+			auto tmp = crosspointSecS(sc1, seg);
+			REP(ii, 2){
+				if(eq(inf, tmp[ii]))continue;
+				if(!can_rotate(tmp[ii], rad_num))continue;
+				auto p_a = tmp[ii];
+				auto id_a = point_size;
+				add_point_list(rad_num, p_a);
+				add_rotate_point(p_a, id_a, rad_num);
+			}
+		}
+	}
 }
 
 bool check_visible(point p_a, point p_b, int rad_num) {
@@ -666,7 +721,7 @@ int main(){
 
 	//output_visible_graph();
 
-	//cout << "point_size " << point_size << endl;
+	cout << "point_size " << point_size << endl;
 
 	REP(i, point_size)dist[i] = INF;
 	dist[0] = 0;
@@ -676,6 +731,6 @@ int main(){
 	else cout << ans << endl;
 	clock_t end = clock();
 	double time = static_cast<double>(end - start) / CLOCKS_PER_SEC * 1000.0;
-	//cout << "time " << time << endl;
+	cout << "time " << time << endl;
 	return 0;
 }
