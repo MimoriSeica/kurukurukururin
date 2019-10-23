@@ -28,7 +28,7 @@ typedef long long ll;
 typedef pair<ll, ll> P;
 
 const double EPS = 1e-8;
-const double EPS_GIG = 1e-3;
+const double EPS_GIG = 1e-3 / 2;
 const double PI = acos(-1.0);
 typedef complex<double> point;
 namespace std {
@@ -151,6 +151,7 @@ vector<point> convex_hull(vector<point> ps) {
 }
 
 /*多角形内包判定
+half-line crossing method
 OUT:0
 ON:1
 IN:2
@@ -162,15 +163,15 @@ int contains(const vector<point>& Poly, const point& p) {
 		point a = curr(Poly, i) - p, b = next(Poly, i) - p;
 		if (imag(a) > imag(b)) swap(a, b);
 		if (imag(a) + EPS <= 0 && EPS < imag(b))
-			if (cross(a, b) + EPS < 0) in = !in;
-		if (abs(cross(a, b)) < EPS && dot(a, b) + EPS <= 0) return 1;
+			if (cross(a, b) < 0) in = !in;
+		if (abs(cross(a, b)) < EPS && dot(a, b) <= 0) return 1;
 	}
 	return in ? 2 : 0;
 }
 
 //見えるか(可視グラフ用)
 bool block_off(const point &a, const point &b, const vector<point> &obj) {
-  point m = (a+b)/2.0;
+  point m = (a + b) * 0.5;
   bool on = false, in = false;
   for (int j = 0; j < obj.size(); ++j) {
     point c = curr(obj,j), d = next(obj,j);
@@ -180,7 +181,7 @@ bool block_off(const point &a, const point &b, const vector<point> &obj) {
     if (cross(a-c,b-c) == 0 && dot(a-c,b-c) < 0) return true;
     if (imag(c) <= imag(m) && imag(m) < imag(d))  // strictly contain.
       if (cross(c-m,d-m) < 0) in = !in;
-    if (cross(c-m,d-m) == 0 && dot(c-m,d-m) <= 0) on = true;
+    if (cross(c-m,d-m) == 0 && dot(c-m,d-m) <= EPS) on = true;
   }
   return !on && in;
 }
@@ -444,7 +445,8 @@ bool contain_sector(sector &sec,point &p){
 	point o = sec.o;
 	point a = sec.a;
 	point b = sec.b;
-	if(abs(p - o) + EPS > L)return false;
+	if(abs(p - o) > L)return false;
+	if(intersectSP(segment(o, a), p))return true;
 	point vec = p - o;
 	point vecA = a - o;
 	point vecB = b - o;
@@ -522,6 +524,12 @@ void output_visible_graph() {
 		cout << m << endl;
 		REP(i, m){
 			segment seg = r_segment_list[rad_num][i];
+			cout << seg[0].real() << " " << seg[0].imag() << " " << seg[1].real() << " " << seg[1].imag() << endl;
+		}
+		m = r_segment_list[(rad_num + 1) % r].size();
+		cout << m << endl;
+		REP(i, m){
+			segment seg = r_segment_list[(rad_num + 1) % r][i];
 			cout << seg[0].real() << " " << seg[0].imag() << " " << seg[1].real() << " " << seg[1].imag() << endl;
 		}
 		vector<segment> g;
