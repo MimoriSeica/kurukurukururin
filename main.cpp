@@ -261,12 +261,21 @@ vector<point> crosspointCC(const circle c1, const circle c2) {
 	return ret;
 }
 
-vector<point> crosspointSecS(const sector sc, const segment s) {
-	circle c = circle(sc.o, sc.r);
+bool isOnSector(const sector sec, const point p) {
+	point vec = p - sec.o;
+	point vecA = sec.a - sec.o;
+	point vecB = sec.b - sec.o;
+	if(eq(angle(vec, vecA) + angle(vec, vecB), angle(vecA, vecB)))return true;
+	return false;
+}
+
+vector<point> crosspointSecS(const sector sec, const segment s) {
+	circle c = circle(sec.o, sec.r);
 	auto ret = crosspointCL(c, s);
 	point inf = point(INF, INF);
 	REP(i, 2){
-		if(!(contain_sector(sc, ret[i]) || eq(sc.a, ret[i]) || eq(sc.b, ret[i]))){
+		if(eq(ret[i], inf))continue;
+		if(!isOnSector(sec, ret[i])){
 			ret[i] = inf;
 			continue;
 		}
@@ -276,17 +285,17 @@ vector<point> crosspointSecS(const sector sc, const segment s) {
 	}
 	return ret;
 }
-vector<point> crosspointSecSec(const sector sc1, const sector sc2) {
-	circle c1 = circle(sc1.o, sc1.r);
-	circle c2 = circle(sc2.o, sc2.r);
+vector<point> crosspointSecSec(const sector sec1, const sector sec2) {
+	circle c1 = circle(sec1.o, sec1.r);
+	circle c2 = circle(sec2.o, sec2.r);
 	auto ret = crosspointCC(c1, c2);
 	point inf = point(INF, INF);
 	REP(i, 2){
-		if(!(contain_sector(sc1, ret[i]) || eq(sc1.a, ret[i]) || eq(sc1.b, ret[i]))){
+		if(!isOnSector(sec1, ret[i])){
 			ret[i] = inf;
 			continue;
 		}
-		if(!(contain_sector(sc2, ret[i]) || eq(sc2.a, ret[i]) || eq(sc2.b, ret[i]))){
+		if(!isOnSector(sec2, ret[i])){
 			ret[i] = inf;
 		}
 	}
@@ -631,7 +640,6 @@ bool can_rotate(point p, int rad_num) {
 	}
 	REP(i, r_sector_list[rad_num].size()){
 		auto sec = r_sector_list[rad_num][i];
-		if(intersectSP(segment(sec.o, sec.a), p))return false;
 		if(contain_sector(sec, p))return false;
 	}
 	return true;
@@ -740,7 +748,7 @@ int main(){
 		make_rotate_point(i);
 	}
 
-	output_visible_graph();
+	//output_visible_graph();
 
 	//cout << "point_size " << point_size << endl;
 
