@@ -71,7 +71,7 @@ int ccw(point a, point b, point c) {
 	b -= a; c -= a;
 	if (cross(b, c) > EPS)   return +1;       // counter clockwise
 	if (cross(b, c) + EPS < 0)   return -1;       // clockwise
-	if (dot(b, c) + EPS < 0)     return +2;       // c--a--b on line
+	if (dot(b, c) - EPS < 0)     return +2;       // c--a--b on line
 	if (norm(b) < norm(c)) return -2;       // a--b--c on line
 	return 0;
 }
@@ -88,7 +88,9 @@ bool intersectLP(const segment &l, const point &p) {
 	return abs(cross(l[1] - p, l[0] - p)) < EPS;
 }
 bool intersectSP(const segment &s, const point &p) {
-	return ccw(s[0], p, s[1]) == -2; // triangle inequality
+	auto a = s[0] - p;
+	auto b = s[1] - p;
+	return (abs(cross(a, b)) < EPS && dot(a, b) <= EPS); // triangle inequality
 }
 //端点の交差も考える
 bool intersectSS(const segment &s, const segment &t) {
@@ -417,7 +419,7 @@ void add_rotate_point(point p_a, int id_a, int rad_num){
 void make_rotate_point(int rad_num) {
 	int next_rad = (rad_num + 1) % r;
 	int pre_rad = (rad_num + r - 1) % r;
-	REP(i, r_point_list[rad_num].size()){
+	REP(i, r_def_point_size[rad_num]){
 		auto p_a = r_point_list[rad_num][i].FI;
 		auto id_a = r_point_list[rad_num][i].SE;
 		if(can_rotate(p_a, rad_num)){
@@ -607,10 +609,9 @@ int main(){
 		make_rotate_point(i);
 	}
 
-
 	//output_visible_graph();
 
-	//cout << "point_size " << point_size << endl;
+	cout << "point_size " << point_size << endl;
 
 	REP(i, point_size)dist[i] = INF;
 	dist[0] = 0;
@@ -620,6 +621,6 @@ int main(){
 	else cout << ans << endl;
 	clock_t end = clock();
 	double time = static_cast<double>(end - start) / CLOCKS_PER_SEC * 1000.0;
-	//cout << "time " << time << endl;
+	cout << "time " << time << endl;
 	return 0;
 }
