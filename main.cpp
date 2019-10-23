@@ -28,7 +28,7 @@ typedef long long ll;
 typedef pair<ll, ll> P;
 
 const double EPS = 1e-8;
-const double EPS_GIG = 1e-3 / 2;
+const double EPS_GIG = 1e-3;
 const double PI = acos(-1.0);
 typedef complex<double> point;
 namespace std {
@@ -288,12 +288,14 @@ struct sector {
 
 double L, sx, sy, gx, gy;
 int point_size = 0, n, r;
-vector<int> dist;
+vector<int> dist(10000);
 vector<int> goal_list;
 vector<segment> seg_list;
-vector<vector<P>> v;
+vector<vector<P>> v(10000);
 // 各回転時点での点候補(点, id)
 vector<vector<pair<point, int>>> r_point_list(20);
+// 回転代表点でないものの点数
+vector<int> r_def_point_size(20);
 // 各回転時点での四角形
 vector<vector<vector<point>>> r_square_list(20);
 // 各回転時点での線分
@@ -302,6 +304,7 @@ vector<vector<segment>> r_segment_list(20);
 vector<vector<sector>> r_sector_list(20);
 
 bool can_rotate(point p, int rad_num);
+bool check_visible(point p_a, point p_b, int rad_num);
 
 bool add_point_list(int rad_num, point p){
 	REP(i, r_square_list[rad_num].size()){
@@ -378,32 +381,70 @@ void make_r_point_list(int rad_num) {
 			if(!intersectSS(seg_a, seg_b))continue;
 			auto p = crosspoint(seg_a, seg_b);
 			add_point_list(rad_num, p);
-			if(can_rotate(p, (rad_num + r - 1) % r)){
-				add_point_list((rad_num + r - 1) % r, p);
-			}
-			if(can_rotate(p, rad_num)){
-				add_point_list((rad_num + 1) % r, p);
-			}
-		}
-		REP(j, r_segment_list[(rad_num + 1) % r].size()){
-			auto seg_b = r_segment_list[(rad_num + 1) % r][j];
-			if(!intersectSS(seg_a, seg_b))continue;
-			auto p = crosspoint(seg_a, seg_b);
-			if(can_rotate(p, rad_num)){
-				add_point_list(rad_num, p);
-				add_point_list((rad_num + 1) % r, p);
-			}
 		}
 	}
 	REP(i, r_square_list[rad_num].size()){
 		REP(j, 4){
 			add_point_list(rad_num, r_square_list[rad_num][i][j]);
-			if(can_rotate(r_square_list[rad_num][i][j], (rad_num + r - 1) % r)){
-				add_point_list((rad_num + r - 1) % r, r_square_list[rad_num][i][j]);
+		}
+	}
+	r_def_point_size[rad_num] = r_point_list[rad_num].size();
+}
+
+void add_rotate_point(point p_a, int id_a, int rad_num){
+	int next_rad = (rad_num + 1) % r;
+	REP(i, r_def_point_size[rad_num]){
+		auto p_b = r_point_list[rad_num][i].FI;
+		auto id_b = r_point_list[rad_num][i].SE;
+		if(check_visible(p_a, p_b, rad_num)){
+			v[id_b].EB(id_a, 0);
+			v[id_a].EB(id_b, 0);
+		}
+	}
+	REP(i, r_def_point_size[next_rad]){
+		auto p_b = r_point_list[next_rad][i].FI;
+		auto id_b = r_point_list[next_rad][i].SE;
+		if(check_visible(p_a, p_b, next_rad)){
+			v[id_a].EB(id_b, 1);
+		}
+	}
+}
+
+void make_rotate_point(int rad_num) {
+	int next_rad = (rad_num + 1) % r;
+	int pre_rad = (rad_num + r - 1) % r;
+	REP(i, r_point_list[rad_num].size()){
+		auto p_a = r_point_list[rad_num][i].FI;
+		auto id_a = r_point_list[rad_num][i].SE;
+		if(can_rotate(p_a, rad_num)){
+			REP(j, r_def_point_size[next_rad]){
+				auto p_b = r_point_list[next_rad][j].FI;
+				auto id_b = r_point_list[next_rad][j].SE;
+				if(check_visible(p_a, p_b, next_rad)){
+					v[id_a].EB(id_b, 1);
+				}
 			}
-			if(can_rotate(r_square_list[rad_num][i][j], rad_num)){
-				add_point_list((rad_num + 1) % r, r_square_list[rad_num][i][j]);
+		}
+		if(can_rotate(p_a, pre_rad)){
+			REP(j, r_def_point_size[pre_rad]){
+				auto p_b = r_point_list[pre_rad][j].FI;
+				auto id_b = r_point_list[pre_rad][j].SE;
+				if(check_visible(p_a, p_b, rad_num)){
+					v[id_b].EB(id_a, 1);
+				}
 			}
+		}
+	}
+	REP(i, r_segment_list[rad_num].size()) {
+		auto seg_a = r_segment_list[rad_num][i];
+		REP(j, r_segment_list[next_rad].size()){
+			auto seg_b = r_segment_list[next_rad][j];
+			if(!intersectSS(seg_a, seg_b))continue;
+			auto p_a = crosspoint(seg_a, seg_b);
+			if(!can_rotate(p_a, rad_num))continue;
+			auto id_a = point_size;
+			add_point_list(rad_num, p_a);
+			add_rotate_point(p_a, id_a, rad_num);
 		}
 	}
 }
@@ -466,23 +507,6 @@ bool can_rotate(point p, int rad_num) {
 		if(contain_sector(r_sector_list[rad_num][i], p))return false;
 	}
 	return true;
-}
-
-void make_rotate_graph(int rad_num) {
-	int next_rad = (rad_num + 1) % r;
-	REP(i, r_point_list[rad_num].size()){
-		point p_a = r_point_list[rad_num][i].FI;
-		int id_a = r_point_list[rad_num][i].SE;
-		REP(j, r_point_list[next_rad].size()){
-			point p_b = r_point_list[next_rad][j].FI;
-			int id_b = r_point_list[next_rad][j].SE;
-
-			if(abs(p_a - p_b) > EPS)continue;
-			if(can_rotate(p_a, rad_num)){
-				v[id_a].EB(id_b, 1);
-			}
-		}
-	}
 }
 
 int Dijkstra() {
@@ -574,12 +598,13 @@ int main(){
 	REP(i, r){
 		make_r_point_list(i);
 	}
-	v.resize(point_size);
-	dist.resize(point_size);
 	REP(i, r){
 		make_visible_graph(i);
-		make_rotate_graph(i);
 	}
+	REP(i, r){
+		make_rotate_point(i);
+	}
+
 
 	//output_visible_graph();
 
