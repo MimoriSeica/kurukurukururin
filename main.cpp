@@ -46,6 +46,17 @@ struct circle {
 	circle(){}
 	circle(const point &p, double r) : p(p), r(r) { }
 };
+
+// 扇型、中心と半径、二つの端点
+// 現在中心角が180未満の前提
+struct sector {
+	point o;
+	point a, b;
+	double r;
+	sector(){}
+	sector(point O, point A, point B, double _r) :o(O), a(A), b(B), r(_r) {}
+};
+
 struct segment : public vector<point> {
 	segment(const point &a, const point &b) {
 		push_back(a); push_back(b);
@@ -58,6 +69,45 @@ double cross(const point& a, const point& b) {
 
 double dot(const point& a, const point& b) {
 	return real(conj(a)*b);
+}
+
+//角度足し算
+double add_rad(double a,double b){
+	double ret = a + b;
+	if(ret > 2 * PI)ret -= 2 * PI;
+	return ret;
+}
+
+//なす角(vector)
+double angle(const point &a,const point &b) {
+	auto tmp = abs(arg(a) - arg(b));
+	return min(tmp, 2 * PI - tmp);
+}
+
+double angle(const segment &s1,const segment &s2) {
+	return angle(s1[1] - s1[0], s2[1] - s2[0]);
+}
+
+//点の回転
+point rotate(const point &p, double rad) {
+	double x = p.real() * cos(rad) - p.imag() * sin(rad);
+	double y = p.imag() * cos(rad) + p.real() * sin(rad);
+	return point(x, y);
+}
+
+//並行
+bool isParallel(const point &a, const point &b){
+    return abs(cross(a,b)) < EPS;
+}
+bool isParallel(const segment &a, const segment &b){
+    return isParallel(a[1]-a[0], b[1]-b[0]);
+}
+//直行
+bool isOrthogonal(const point &a,const point &b){
+	return abs(angle(a,b) - PI / 2) < EPS;
+}
+bool isOrthogonal(const segment &a,const segment &b){
+	return isOrthogonal(a[1]-a[0],b[1]-b[0]);
 }
 
 /*
@@ -75,6 +125,34 @@ int ccw(point a, point b, point c) {
 	if (dot(b, c) - EPS < 0)     return +2;       // c--a--b on line
 	if (norm(b) < norm(c)) return -2;       // a--b--c on line
 	return 0;
+}
+
+/*多角形内包判定
+half-line crossing method
+OUT:0
+ON:1
+IN:2
+*/
+int contains(const vector<point>& Poly, const point& p) {
+	bool in = false;
+	for (int i = 0; i < Poly.size(); ++i) {
+		point a = curr(Poly, i) - p, b = next(Poly, i) - p;
+		if (imag(a) > imag(b)) swap(a, b);
+		if (imag(a) + EPS <= 0 && EPS < imag(b))
+			if (cross(a, b) < 0) in = !in;
+		if (abs(cross(a, b)) < EPS && dot(a, b) <= EPS) return 1;
+	}
+	return in ? 2 : 0;
+}
+
+// 厳密に入っている時のみTrue
+bool contain_sector(const sector &sec,point &p){
+	if(abs(p - sec.o) > sec.r)return false;
+	point vec = p - sec.o;
+	point vecA = sec.a - sec.o;
+	point vecB = sec.b - sec.o;
+	if(angle(vec,vecA) + EPS < angle(vecA,vecB) && angle(vec,vecB) + EPS < angle(vecA,vecB))return true;
+	return false;
 }
 
 bool intersectLL(const segment &l, const segment &m) {
@@ -179,6 +257,24 @@ vector<point> crosspointCC(const circle c1, const circle c2) {
 	return ret;
 }
 
+vector<point> crosspointSecSec(const sector sc1, const sector sc2) {
+	circle c1 = circle(sc1.o, sc1.r);
+	circle c2 = circle(sc2.o, sc2.r);
+	auto ret = crosspointCC(c1, c2);
+	point inf = point(INF, INF);
+	REP(i, 2){
+		if(!(contain_sector(sc1, ret[i]) || eq(sc1.a, ret[i]) || eq(sc1.b, ret[i]))){
+			ret[i] = inf;
+			continue;
+		}
+		if(!(contain_sector(sc2, ret[i]) || eq(sc2.a, ret[i]) || eq(sc2.b, ret[i]))){
+			ret[i] = inf;
+		}
+	}
+	return ret;
+}
+
+
 //凸包
 vector<point> convex_hull(vector<point> ps) {
 	int n = ps.size(), k = 0;
@@ -190,25 +286,6 @@ vector<point> convex_hull(vector<point> ps) {
 		while (k >= t && ccw(ch[k-2], ch[k-1], ps[i]) == -1) --k;
 	ch.resize(k - 1);
 	return ch;
-}
-
-/*多角形内包判定
-half-line crossing method
-OUT:0
-ON:1
-IN:2
-*/
-
-int contains(const vector<point>& Poly, const point& p) {
-	bool in = false;
-	for (int i = 0; i < Poly.size(); ++i) {
-		point a = curr(Poly, i) - p, b = next(Poly, i) - p;
-		if (imag(a) > imag(b)) swap(a, b);
-		if (imag(a) + EPS <= 0 && EPS < imag(b))
-			if (cross(a, b) < 0) in = !in;
-		if (abs(cross(a, b)) < EPS && dot(a, b) <= EPS) return 1;
-	}
-	return in ? 2 : 0;
 }
 
 //見えるか(可視グラフ用)
@@ -236,44 +313,6 @@ double area(const vector<point>& p) {
 	return A / 2.;
 }
 
-//角度足し算
-double add_rad(double a,double b){
-	double ret = a + b;
-	if(ret > 2 * PI)ret -= 2 * PI;
-	return ret;
-}
-
-//なす角(vector)
-double angle(const point &a,const point &b) {
-	auto tmp = abs(arg(a) - arg(b));
-	return min(tmp, 2 * PI - tmp);
-}
-
-double angle(const segment &s1,const segment &s2) {
-	return angle(s1[1] - s1[0], s2[1] - s2[0]);
-}
-
-//点の回転
-point rotate(const point &p, double rad) {
-	double x = p.real() * cos(rad) - p.imag() * sin(rad);
-	double y = p.imag() * cos(rad) + p.real() * sin(rad);
-	return point(x, y);
-}
-
-//並行
-bool isParallel(const point &a, const point &b){
-    return abs(cross(a,b)) < EPS;
-}
-bool isParallel(const segment &a, const segment &b){
-    return isParallel(a[1]-a[0], b[1]-b[0]);
-}
-//直行
-bool isOrthogonal(const point &a,const point &b){
-	return abs(angle(a,b) - PI / 2) < EPS;
-}
-bool isOrthogonal(const segment &a,const segment &b){
-	return isOrthogonal(a[1]-a[0],b[1]-b[0]);
-}
 //凸包判定
 bool isConvex(vector<point> poly){
 	int sz = poly.size();
@@ -319,15 +358,6 @@ vector<point> convex_cut(const vector<point> P, const segment& l) {
   }
   return Q;
 }
-
-//扇型、中心と二つの端点
-struct sector {
-	point o;
-	point a, b;
-	double l;
-	sector(){}
-	sector(point O, point A, point B, double _l) :o(O), a(A), b(B), l(_l) {}
-};
 
 double L, sx, sy, gx, gy;
 int point_size = 0, n, r;
@@ -522,19 +552,6 @@ void make_visible_graph(int rad_num) {
 	}
 }
 
-bool contain_sector(sector &sec,point &p){
-	point o = sec.o;
-	point a = sec.a;
-	point b = sec.b;
-	if(abs(p - o) > L)return false;
-	if(intersectSP(segment(o, a), p))return true;
-	point vec = p - o;
-	point vecA = a - o;
-	point vecB = b - o;
-	if(angle(vec,vecA) + EPS < angle(vecA,vecB) && angle(vec,vecB) + EPS < angle(vecA,vecB))return true;
-	return false;
-}
-
 bool can_rotate(point p, int rad_num) {
 	int next_rad = (rad_num + 1) % r;
 	REP(i, r_square_list[rad_num].size()){
@@ -544,7 +561,9 @@ bool can_rotate(point p, int rad_num) {
 		if(contains(r_square_list[next_rad][i], p) == 2)return false;
 	}
 	REP(i, r_sector_list[rad_num].size()){
-		if(contain_sector(r_sector_list[rad_num][i], p))return false;
+		auto sec = r_sector_list[rad_num][i];
+		if(intersectSP(segment(sec.o, sec.a), p))return false;
+		if(contain_sector(sec, p))return false;
 	}
 	return true;
 }
@@ -618,20 +637,6 @@ void output_visible_graph() {
 	exit(0);
 }
 
-int main() {
-	double x1, y1, r1;cin >> x1 >> y1 >> r1;
-	double x2, y2, r2;cin >> x2 >> y2 >> r2;
-	circle c1 = circle(point(x1, y1), r1);
-	circle c2 = circle(point(x2, y2), r2);
-	auto ans = crosspointCC(c1, c2);
-	sort(ALL(ans));
-	cout << Decimal;
-	cout << ans[0].real() << " " << ans[0].imag() << " ";
-	if(eq(ans[1].real(), INF))cout << ans[0].real() << " " << ans[0].imag() << endl;
-	else cout << ans[1].real() << " " << ans[1].imag() << endl;
-}
-
-/*
 int main(){
 	cin.tie(0);cout.tie(0);ios::sync_with_stdio(false);
 	cin >> L >> r;L += EPS_GIG;
@@ -661,7 +666,7 @@ int main(){
 
 	//output_visible_graph();
 
-	cout << "point_size " << point_size << endl;
+	//cout << "point_size " << point_size << endl;
 
 	REP(i, point_size)dist[i] = INF;
 	dist[0] = 0;
@@ -671,7 +676,6 @@ int main(){
 	else cout << ans << endl;
 	clock_t end = clock();
 	double time = static_cast<double>(end - start) / CLOCKS_PER_SEC * 1000.0;
-	cout << "time " << time << endl;
+	//cout << "time " << time << endl;
 	return 0;
 }
-*/
