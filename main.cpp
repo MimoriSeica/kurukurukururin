@@ -323,7 +323,6 @@ bool add_point_list(int rad_num, point p){
 
 void make_r_segment_list_square_list(int rad_num) {
 	double rad = (double)rad_num * PI / r;
-	double next_rad = (double)((rad_num + 1) % r) * PI / r;
 	point vec = rotate(point(L, 0), rad);
 
 	REP(i, n) {
@@ -361,7 +360,7 @@ void make_r_segment_list_square_list(int rad_num) {
 
 void make_r_sector_list(int rad_num){
 	double rad = (double)rad_num * PI / r;
-	double next_rad = (double)((rad_num + 1) % r) * PI / r;
+	double next_rad = (double)(rad_num + 1) * PI / r;
 	point vec = rotate(point(L, 0), rad);
 	point next_vec = rotate(point(L, 0), next_rad);
 
@@ -435,7 +434,7 @@ void make_rotate_point(int rad_num) {
 			REP(j, r_def_point_size[pre_rad]){
 				auto p_b = r_point_list[pre_rad][j].FI;
 				auto id_b = r_point_list[pre_rad][j].SE;
-				if(check_visible(p_a, p_b, rad_num)){
+				if(check_visible(p_a, p_b, pre_rad)){
 					v[id_b].EB(id_a, 1);
 				}
 			}
