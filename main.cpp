@@ -147,7 +147,7 @@ int contains(const vector<point>& Poly, const point& p) {
 
 // 厳密に入っている時のみTrue
 bool contain_sector(const sector &sec,point &p){
-	if(abs(p - sec.o) > sec.r)return false;
+	if(abs(p - sec.o) + EPS > sec.r)return false;
 	point vec = p - sec.o;
 	point vecA = sec.a - sec.o;
 	point vecB = sec.b - sec.o;
@@ -440,6 +440,13 @@ void make_r_segment_list_square_list(int rad_num) {
 	}
 }
 
+void add_sector(vector<sector> &sec_v, sector sec, int rad_num, int square_num){
+	if(contains(r_square_list[rad_num][square_num], sec.b) != 0){
+		swap(sec.a, sec.b);
+	}
+	sec_v.EB(sec);
+}
+
 void make_r_sector_list(int rad_num){
 	double rad = (double)rad_num * PI / r;
 	double next_rad = (double)(rad_num + 1) * PI / r;
@@ -449,8 +456,10 @@ void make_r_sector_list(int rad_num){
 	REP(i, seg_list.size()){
 		REP(j, 2){
 			auto p = seg_list[i][j];
-			r_sector_list[rad_num].EB(p, p + vec, p + next_vec, L);
-			r_sector_list[rad_num].EB(p, p - vec, p - next_vec, L);
+			auto sec = sector(p, p + vec, p + next_vec, L);
+			add_sector(r_sector_list[rad_num], sec, rad_num, i);
+			sec = sector(p, p - vec, p - next_vec, L);
+			add_sector(r_sector_list[rad_num], sec, rad_num, i);
 		}
 	}
 }
