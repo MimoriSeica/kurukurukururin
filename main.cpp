@@ -27,7 +27,7 @@ typedef pair<ll,ll> P;
 typedef long long ll;
 typedef pair<ll, ll> P;
 
-const double EPS = 1e-7;
+const double EPS = 1e-8;
 const double EPS_GIG = 1e-3;
 const double PI = acos(-1.0);
 typedef complex<double> point;
@@ -196,7 +196,7 @@ double area(const vector<point>& p) {
 //角度足し算
 double add_rad(double a,double b){
 	double ret = a + b;
-	if(ret > PI)ret -= 2 * PI;
+	if(ret > 2 * PI)ret -= 2 * PI;
 	return ret;
 }
 
@@ -315,7 +315,6 @@ void make_r_segment_list_square_list(int rad_num) {
 	double rad = (double)rad_num * PI / r;
 	double next_rad = (double)((rad_num + 1) % r) * PI / r;
 	point vec = rotate(point(L, 0), rad);
-	point next_vec = rotate(point(L, 0), next_rad);
 
 	REP(i, n) {
 		segment now = seg_list[i];
@@ -326,9 +325,9 @@ void make_r_segment_list_square_list(int rad_num) {
 		if (isParallel(now_v,vec)) {
 			point rotated_vec = rotate(point(EPS_GIG,0),add_rad(rad,PI/2));
 			point C, D;
-			if(norm(A - (B + vec)) > norm(A - (B - vec)))C = B + vec;
+			if(abs(A - (B + vec)) > abs(A - (B - vec)))C = B + vec;
 			else C = B - vec;
-			if(norm(B - (A + vec)) > norm(B - (A - vec)))D = A + vec;
+			if(abs(B - (A + vec)) > abs(B - (A - vec)))D = A + vec;
 			else D = A - vec;
 
 			tmp.PB(C + rotated_vec);
@@ -385,6 +384,15 @@ void make_r_point_list(int rad_num) {
 				add_point_list((rad_num + 1) % r, p);
 			}
 		}
+		REP(j, r_segment_list[(rad_num + 1) % r].size()){
+			auto seg_b = r_segment_list[(rad_num + 1) % r][j];
+			if(!intersectSS(seg_a, seg_b))continue;
+			auto p = crosspoint(seg_a, seg_b);
+			if(can_rotate(p, rad_num)){
+				add_point_list(rad_num, p);
+				add_point_list((rad_num + 1) % r, p);
+			}
+		}
 	}
 	REP(i, r_square_list[rad_num].size()){
 		REP(j, 4){
@@ -436,13 +444,11 @@ bool contain_sector(sector &sec,point &p){
 	point o = sec.o;
 	point a = sec.a;
 	point b = sec.b;
-	if(distancePP(p,o) > L + EPS)return false;
-	if(intersectSP(segment(o,a), p))return true;
-	if(intersectSP(segment(o,b), p))return true;
+	if(abs(p - o) + EPS > L)return false;
 	point vec = p - o;
 	point vecA = a - o;
 	point vecB = b - o;
-	if(angle(vec,vecA) < angle(vecA,vecB) && angle(vec,vecB) < angle(vecA,vecB))return true;
+	if(angle(vec,vecA) + EPS < angle(vecA,vecB) && angle(vec,vecB) + EPS < angle(vecA,vecB))return true;
 	return false;
 }
 
@@ -469,7 +475,7 @@ void make_rotate_graph(int rad_num) {
 			point p_b = r_point_list[next_rad][j].FI;
 			int id_b = r_point_list[next_rad][j].SE;
 
-			if(norm(p_a - p_b) > EPS)continue;
+			if(abs(p_a - p_b) > EPS)continue;
 			if(can_rotate(p_a, rad_num)){
 				v[id_a].EB(id_b, 1);
 			}
@@ -537,11 +543,12 @@ void output_visible_graph() {
 			cout << seg[0].real() << " " << seg[0].imag() << " " << seg[1].real() << " " << seg[1].imag() << endl;
 		}
 	}
+	exit(0);
 }
 
 int main(){
 	cin.tie(0);cout.tie(0);ios::sync_with_stdio(false);
-	cin >> L >> r;
+	cin >> L >> r;L += EPS_GIG;
 	cin >> sx >> sy;
 	cin >> gx >> gy;
 
@@ -565,11 +572,10 @@ int main(){
 		make_visible_graph(i);
 		make_rotate_graph(i);
 	}
-/*
-	output_visible_graph();
-	return 0;
-*/
-	cout << "point_size " << point_size << endl;
+
+	//output_visible_graph();
+
+	//cout << "point_size " << point_size << endl;
 
 	REP(i, point_size)dist[i] = INF;
 	dist[0] = 0;
@@ -579,6 +585,6 @@ int main(){
 	else cout << ans << endl;
 	clock_t end = clock();
 	double time = static_cast<double>(end - start) / CLOCKS_PER_SEC * 1000.0;
-	cout << "time " << time << endl;
+	//cout << "time " << time << endl;
 	return 0;
 }
