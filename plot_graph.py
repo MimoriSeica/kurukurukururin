@@ -19,6 +19,11 @@ for _ in range(n):
     m = int(input())
     for i in range(m):
         x1, y1, x2, y2 = map(float, input().split())
+        ax.plot([x1, x2], [y1, y2], linestyle= "dashed", color = "cyan")
+
+    m = int(input())
+    for i in range(m):
+        x1, y1, x2, y2 = map(float, input().split())
         ax.plot([x1, x2], [y1, y2], linestyle= "dotted", color = "crimson")
 
     plt.show();
