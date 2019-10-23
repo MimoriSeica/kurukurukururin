@@ -405,7 +405,7 @@ bool add_point_list(int rad_num, point p){
 
 void make_r_segment_list_square_list(int rad_num) {
 	double rad = (double)rad_num * PI / r;
-	point vec = rotate(point(L, 0), rad);
+	point vec = point(cos(rad), sin(rad)) * L;
 
 	REP(i, n) {
 		segment now = seg_list[i];
@@ -414,7 +414,7 @@ void make_r_segment_list_square_list(int rad_num) {
 		point now_v = B - A;
 		vector<point> tmp;
 		if (isParallel(now_v,vec)) {
-			point rotated_vec = rotate(point(EPS_GIG,0),add_rad(rad,PI/2));
+			point rotated_vec = point(-sin(rad), cos(rad)) * EPS_GIG;
 			point C, D;
 			if(abs(A - (B + vec)) > abs(A - (B - vec)))C = B + vec;
 			else C = B - vec;
@@ -443,8 +443,8 @@ void make_r_segment_list_square_list(int rad_num) {
 void make_r_sector_list(int rad_num){
 	double rad = (double)rad_num * PI / r;
 	double next_rad = (double)(rad_num + 1) * PI / r;
-	point vec = rotate(point(L, 0), rad);
-	point next_vec = rotate(point(L, 0), next_rad);
+	point vec = point(cos(rad), sin(rad)) * L;
+	point next_vec = point(cos(next_rad), sin(next_rad)) * L;
 
 	REP(i, seg_list.size()){
 		REP(j, 2){
@@ -721,7 +721,7 @@ int main(){
 
 	//output_visible_graph();
 
-	cout << "point_size " << point_size << endl;
+	//cout << "point_size " << point_size << endl;
 
 	REP(i, point_size)dist[i] = INF;
 	dist[0] = 0;
@@ -731,6 +731,6 @@ int main(){
 	else cout << ans << endl;
 	clock_t end = clock();
 	double time = static_cast<double>(end - start) / CLOCKS_PER_SEC * 1000.0;
-	cout << "time " << time << endl;
+	//cout << "time " << time << endl;
 	return 0;
 }
