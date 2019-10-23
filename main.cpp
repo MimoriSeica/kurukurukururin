@@ -127,34 +127,6 @@ int ccw(point a, point b, point c) {
 	return 0;
 }
 
-/*多角形内包判定
-half-line crossing method
-OUT:0
-ON:1
-IN:2
-*/
-int contains(const vector<point>& Poly, const point& p) {
-	bool in = false;
-	for (int i = 0; i < Poly.size(); ++i) {
-		point a = curr(Poly, i) - p, b = next(Poly, i) - p;
-		if (imag(a) > imag(b)) swap(a, b);
-		if (imag(a) + EPS <= 0 && EPS < imag(b))
-			if (cross(a, b) < 0) in = !in;
-		if (abs(cross(a, b)) < EPS && dot(a, b) <= EPS) return 1;
-	}
-	return in ? 2 : 0;
-}
-
-// 厳密に入っている時のみTrue
-bool contain_sector(const sector &sec,point &p){
-	if(abs(p - sec.o) + EPS > sec.r)return false;
-	point vec = p - sec.o;
-	point vecA = sec.a - sec.o;
-	point vecB = sec.b - sec.o;
-	if(angle(vec,vecA) + EPS < angle(vecA,vecB) && angle(vec,vecB) + EPS < angle(vecA,vecB))return true;
-	return false;
-}
-
 bool intersectLL(const segment &l, const segment &m) {
 	return abs(cross(l[1] - l[0], m[1] - m[0])) > EPS || // non-parallel
 		abs(cross(l[1] - l[0], m[0] - l[0])) < EPS;   // same line
@@ -211,6 +183,38 @@ double distanceSS(const segment &s, const segment &t) {
 }
 double distancePP(const point &a,const point &b){
 	return abs(a-b);
+}
+
+/*多角形内包判定
+half-line crossing method
+OUT:0
+ON:1
+IN:2
+*/
+int contains(const vector<point>& Poly, const point& p) {
+	bool in = false;
+	for (int i = 0; i < Poly.size(); ++i) {
+		point a = curr(Poly, i) - p, b = next(Poly, i) - p;
+		if (imag(a) > imag(b)) swap(a, b);
+		if (imag(a) + EPS <= 0 && EPS < imag(b))
+			if (cross(a, b) < 0) in = !in;
+		if (abs(cross(a, b)) < EPS && dot(a, b) <= EPS) return 1;
+	}
+	return in ? 2 : 0;
+}
+
+// 厳密に入っている時のみTrue
+bool contain_sector(const sector &sec, point &p){
+	if(abs(p - sec.o) + EPS > sec.r)return false;
+	if(eq(abs(p - sec.o), sec.r))return false;
+	if(eq(p, sec.o))return false;
+	if(intersectSP(segment(sec.o, sec.a), p))return false;
+	if(intersectSP(segment(sec.o, sec.b), p))return false;
+	point vec = p - sec.o;
+	point vecA = sec.a - sec.o;
+	point vecB = sec.b - sec.o;
+	if(angle(vec, vecA) < angle(vecA, vecB) && angle(vec, vecB) < angle(vecA, vecB))return true;
+	return false;
 }
 
 //交点
@@ -411,7 +415,7 @@ void make_r_segment_list_square_list(int rad_num) {
 		segment now = seg_list[i];
 		point A = now[0];
 		point B = now[1];
-		point now_v = B - A;
+		point now_v = A - B;
 		vector<point> tmp;
 		if (isParallel(now_v,vec)) {
 			point rotated_vec = point(-sin(rad), cos(rad)) * EPS_GIG;
@@ -427,10 +431,11 @@ void make_r_segment_list_square_list(int rad_num) {
 			tmp.PB(D - rotated_vec);
 		}
 		else {
-			tmp.PB(A + vec);
-			tmp.PB(A - vec);
-			tmp.PB(B + vec);
-			tmp.PB(B - vec);
+			auto eps_vec = now_v * EPS_GIG / abs(now_v);
+			tmp.PB(A + vec + eps_vec);
+			tmp.PB(A - vec + eps_vec);
+			tmp.PB(B + vec - eps_vec);
+			tmp.PB(B - vec - eps_vec);
 		}
 		tmp = convex_hull(tmp);
 		r_square_list[rad_num].EB(tmp);
@@ -679,6 +684,13 @@ void output_visible_graph() {
 			segment seg = r_segment_list[(rad_num + 1) % r][i];
 			cout << seg[0].real() << " " << seg[0].imag() << " " << seg[1].real() << " " << seg[1].imag() << endl;
 		}
+		m = r_sector_list[rad_num].size();
+		cout << 2 * m << endl;
+		REP(i, m){
+			auto sec = r_sector_list[rad_num][i];
+			cout << sec.o.real() << " " << sec.o.imag() << " " << sec.a.real() << " " << sec.a.imag() << endl;
+			cout << sec.o.real() << " " << sec.o.imag() << " " << sec.b.real() << " " << sec.b.imag() << endl;
+		}
 		vector<segment> g;
 		REP(i, r_point_list[rad_num].size()){
 			auto p_a = r_point_list[rad_num][i].FI;
@@ -728,7 +740,7 @@ int main(){
 		make_rotate_point(i);
 	}
 
-	//output_visible_graph();
+	output_visible_graph();
 
 	//cout << "point_size " << point_size << endl;
 
