@@ -23,6 +23,7 @@ typedef pair<ll,ll> P;
 #define curr(PP, i) PP[i]
 #define next(PP, i) PP[(i+1)%PP.size()]
 #define diff(PP, i) (next(PP, i) - curr(PP, i))
+#define eq(n,m) (abs((n)-(m)) < EPS)
 
 typedef long long ll;
 typedef pair<ll, ll> P;
@@ -160,6 +161,24 @@ vector<point> crosspointCL(const circle &c, const segment &l) {
 	return ret;
 }
 
+vector<point> crosspointCC(const circle c1, const circle c2) {
+	auto ret = vector<point>(2, point(INF, INF));
+	auto dist = abs(c2.p - c1.p);
+	if(eq(dist, c1.r + c2.r) || eq(dist, abs(c2.r - c1.r))){
+		auto tmp = c2.p - c1.p;
+		ret[0] = c1.p + tmp * (c1.r / dist);
+		return ret;
+	}
+	if(c1.r + c2.r < dist || dist < abs(c1.r - c2.r)){
+		return ret;
+	}
+	auto alpha = acos((c1.r * c1.r + dist * dist - c2.r * c2.r) / (2 * c1.r * dist));
+	auto theta = atan2(c2.p.imag() - c1.p.imag(), c2.p.real() - c1.p.real());
+	ret[0] = c1.p + point(cos(theta + alpha) * c1.r, sin(theta + alpha) * c1.r);
+	ret[1] = c1.p + point(cos(theta - alpha) * c1.r, sin(theta - alpha) * c1.r);
+	return ret;
+}
+
 //凸包
 vector<point> convex_hull(vector<point> ps) {
 	int n = ps.size(), k = 0;
@@ -187,7 +206,7 @@ int contains(const vector<point>& Poly, const point& p) {
 		if (imag(a) > imag(b)) swap(a, b);
 		if (imag(a) + EPS <= 0 && EPS < imag(b))
 			if (cross(a, b) < 0) in = !in;
-		if (abs(cross(a, b)) < EPS && dot(a, b) <= 0) return 1;
+		if (abs(cross(a, b)) < EPS && dot(a, b) <= EPS) return 1;
 	}
 	return in ? 2 : 0;
 }
@@ -599,6 +618,20 @@ void output_visible_graph() {
 	exit(0);
 }
 
+int main() {
+	double x1, y1, r1;cin >> x1 >> y1 >> r1;
+	double x2, y2, r2;cin >> x2 >> y2 >> r2;
+	circle c1 = circle(point(x1, y1), r1);
+	circle c2 = circle(point(x2, y2), r2);
+	auto ans = crosspointCC(c1, c2);
+	sort(ALL(ans));
+	cout << Decimal;
+	cout << ans[0].real() << " " << ans[0].imag() << " ";
+	if(eq(ans[1].real(), INF))cout << ans[0].real() << " " << ans[0].imag() << endl;
+	else cout << ans[1].real() << " " << ans[1].imag() << endl;
+}
+
+/*
 int main(){
 	cin.tie(0);cout.tie(0);ios::sync_with_stdio(false);
 	cin >> L >> r;L += EPS_GIG;
@@ -641,3 +674,4 @@ int main(){
 	cout << "time " << time << endl;
 	return 0;
 }
+*/
