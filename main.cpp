@@ -92,9 +92,13 @@ bool intersectSP(const segment &s, const point &p) {
 }
 //端点の交差も考える
 bool intersectSS(const segment &s, const segment &t) {
-	if(intersectSP(s,t[0]) || intersectSP(s,t[1]) || intersectSP(t,s[0]) || intersectSP(t,s[1]))return true;
-	return ccw(s[0], s[1], t[0]) * ccw(s[0], s[1], t[1]) + EPS <= 0 &&
-		ccw(t[0], t[1], s[0]) * ccw(t[0], t[1], s[1]) + EPS <= 0;
+	return ccw(s[0], s[1], t[0]) * ccw(s[0], s[1], t[1]) <= 0 &&
+		ccw(t[0], t[1], s[0]) * ccw(t[0], t[1], s[1]) <= 0;
+}
+//端点の交差hは考えない
+bool strictIntersectSS(const segment &s, const segment &t) {
+	return ccw(s[0], s[1], t[0]) * ccw(s[0], s[1], t[1]) == -1 &&
+		ccw(t[0], t[1], s[0]) * ccw(t[0], t[1], s[1]) == -1;
 }
 
 point projection(const segment &l, const point &p) {
@@ -458,10 +462,8 @@ bool check_visible(point p_a, point p_b, int rad_num) {
 		auto sq = r_square_list[rad_num][i];
 		if(contains(sq, mid) == 2)return false;
 		REP(j, 4){
-			if(ccw(sq[j], sq[(j+1)%4], seg[0]) *
-			   ccw(sq[j], sq[(j+1)%4], seg[1]) + EPS <= 0 &&
-			   ccw(seg[0], seg[1], sq[j]) *
-			   ccw(seg[0], seg[1], sq[(j+1)%4]) + EPS <= 0)return false;
+			segment tmp_seg = segment(sq[j], sq[(j+1)%4]);
+			if(strictIntersectSS(seg, tmp_seg))return false;
 		}
 	}
 	return true;
