@@ -395,8 +395,10 @@ vector<vector<pair<point, int>>> r_point_list(20);
 vector<int> r_def_point_size(20);
 // 各回転時点での四角形
 vector<vector<vector<point>>> r_square_list(20);
+vector<vector<vector<point>>> r_square_beta_list(20);
 // 各回転時点での線分
 vector<vector<segment>> r_segment_list(20);
+vector<vector<segment>> r_segment_beta_list(20);
 // 各回転時点での扇
 vector<vector<sector>> r_sector_list(20);
 
@@ -415,14 +417,17 @@ bool add_point_list(int rad_num, point p){
 void make_r_segment_list_square_list(int rad_num) {
 	double rad = (double)rad_num * PI / r;
 	point vec = point(cos(rad), sin(rad)) * L;
+	double next_rad = (double)(rad_num + 1) * PI / r;
+	point next_vec = point(cos(next_rad), sin(next_rad)) * L;
 
-	REP(i, n) {
-		segment now = seg_list[i];
+	REP(seg_num, n) {
+		segment now = seg_list[seg_num];
 		point A = now[0];
 		point B = now[1];
 		point now_v = A - B;
 		vector<point> tmp;
 		if (isParallel(now_v,vec)) {
+			vec = point(cos(rad), sin(rad)) * L;
 			point rotated_vec = point(-sin(rad), cos(rad)) * EPS_GIG;
 			point C, D;
 			if(abs(A - (B + vec)) > abs(A - (B - vec)))C = B + vec;
@@ -442,10 +447,25 @@ void make_r_segment_list_square_list(int rad_num) {
 			tmp.PB(B + vec - eps_vec);
 			tmp.PB(B - vec - eps_vec);
 		}
+
 		tmp = convex_hull(tmp);
 		r_square_list[rad_num].EB(tmp);
-		REP(j, 4) {
-			r_segment_list[rad_num].EB(tmp[j], tmp[(j + 1) % 4]);
+		REP(i, 4) {
+			r_segment_list[rad_num].EB(tmp[i], tmp[(i + 1) % 4]);
+		}
+
+		point rotated_vec = now_v * point(0, 1) * (L / abs(now_v));
+		if(ccw(point(0, 0), vec, rotated_vec) * ccw(point(0, 0), next_vec, rotated_vec) == -1) {
+			vector<point> beta;
+			beta.PB(A + rotated_vec);
+			beta.PB(A - rotated_vec);
+			beta.PB(B + rotated_vec);
+			beta.PB(B - rotated_vec);
+			auto square_beta = convex_hull(beta);
+			r_square_beta_list[rad_num].PB(square_beta);
+			REP(i, 4){
+				r_segment_beta_list[rad_num].EB(square_beta[i], square_beta[(i+1)%4]);
+			}
 		}
 	}
 }
@@ -509,6 +529,44 @@ void add_rotate_point(point p_a, int id_a, int rad_num){
 	}
 }
 
+void make_rotate_pointSS(vector<segment> &seg_list_a,
+						 vector<segment> &seg_list_b,
+						 int rad_num) {
+	REP(i, seg_list_a.size()) {
+		auto seg_a = seg_list_a[i];
+		REP(j, seg_list_b.size()){
+			auto seg_b = seg_list_b[j];
+			if(!intersectSS(seg_a, seg_b))continue;
+			auto p_a = crosspointSS(seg_a, seg_b);
+			if(!can_rotate(p_a, rad_num))continue;
+			auto id_a = point_size;
+			add_point_list(rad_num, p_a);
+			add_rotate_point(p_a, id_a, rad_num);
+		}
+	}
+}
+
+void make_rotate_pointSecS(vector<sector> &sec_list,
+						   vector<segment> & seg_list,
+					       int rad_num) {
+    REP(i, sec_list.size()){
+	    auto sc1 = sec_list[i];
+	    point inf = point(INF, INF);
+		REP(j, seg_list.size()){
+			auto seg = seg_list[j];
+			auto tmp = crosspointSecS(sc1, seg);
+			REP(ii, 2){
+				if(eq(inf, tmp[ii]))continue;
+				if(!can_rotate(tmp[ii], rad_num))continue;
+				auto p_a = tmp[ii];
+				auto id_a = point_size;
+				add_point_list(rad_num, p_a);
+				add_rotate_point(p_a, id_a, rad_num);
+			}
+		}
+	}
+}
+
 void make_rotate_point(int rad_num) {
 	int next_rad = (rad_num + 1) % r;
 	int pre_rad = (rad_num + r - 1) % r;
@@ -534,48 +592,19 @@ void make_rotate_point(int rad_num) {
 			}
 		}
 	}
-	REP(i, r_segment_list[rad_num].size()) {
-		auto seg_a = r_segment_list[rad_num][i];
-		REP(j, r_segment_list[next_rad].size()){
-			auto seg_b = r_segment_list[next_rad][j];
-			if(!intersectSS(seg_a, seg_b))continue;
-			auto p_a = crosspointSS(seg_a, seg_b);
-			if(!can_rotate(p_a, rad_num))continue;
-			auto id_a = point_size;
-			add_point_list(rad_num, p_a);
-			add_rotate_point(p_a, id_a, rad_num);
-		}
-	}
+	make_rotate_pointSS(r_segment_list[rad_num], r_segment_list[next_rad], rad_num);
+	make_rotate_pointSS(r_segment_beta_list[rad_num], r_segment_list[rad_num], rad_num);
+	make_rotate_pointSS(r_segment_beta_list[rad_num], r_segment_list[next_rad], rad_num);
+	make_rotate_pointSS(r_segment_beta_list[rad_num], r_segment_beta_list[next_rad], rad_num);
+	make_rotate_pointSecS(r_sector_list[rad_num], r_segment_list[rad_num], rad_num);
+	make_rotate_pointSecS(r_sector_list[rad_num], r_segment_list[next_rad], rad_num);
+	make_rotate_pointSecS(r_sector_list[rad_num], r_segment_beta_list[rad_num], rad_num);
 	REP(i, r_sector_list[rad_num].size()){
 		auto sc1 = r_sector_list[rad_num][i];
 		point inf = point(INF, INF);
 		REP(j, i){
 			auto sc2 = r_sector_list[rad_num][j];
 			auto tmp = crosspointSecSec(sc1, sc2);
-			REP(ii, 2){
-				if(eq(inf, tmp[ii]))continue;
-				if(!can_rotate(tmp[ii], rad_num))continue;
-				auto p_a = tmp[ii];
-				auto id_a = point_size;
-				add_point_list(rad_num, p_a);
-				add_rotate_point(p_a, id_a, rad_num);
-			}
-		}
-		REP(j, r_segment_list[rad_num].size()){
-			auto seg = r_segment_list[rad_num][j];
-			auto tmp = crosspointSecS(sc1, seg);
-			REP(ii, 2){
-				if(eq(inf, tmp[ii]))continue;
-				if(!can_rotate(tmp[ii], rad_num))continue;
-				auto p_a = tmp[ii];
-				auto id_a = point_size;
-				add_point_list(rad_num, p_a);
-				add_rotate_point(p_a, id_a, rad_num);
-			}
-		}
-		REP(j, r_segment_list[next_rad].size()){
-			auto seg = r_segment_list[next_rad][j];
-			auto tmp = crosspointSecS(sc1, seg);
 			REP(ii, 2){
 				if(eq(inf, tmp[ii]))continue;
 				if(!can_rotate(tmp[ii], rad_num))continue;
@@ -623,6 +652,9 @@ bool can_rotate(point p, int rad_num) {
 	int next_rad = (rad_num + 1) % r;
 	REP(i, r_square_list[rad_num].size()){
 		if(contains(r_square_list[rad_num][i], p) == 2)return false;
+	}
+	REP(i, r_square_beta_list[rad_num].size()){
+		if(contains(r_square_beta_list[rad_num][i], p) == 2)return false;
 	}
 	REP(i, r_square_list[next_rad].size()){
 		if(contains(r_square_list[next_rad][i], p) == 2)return false;
