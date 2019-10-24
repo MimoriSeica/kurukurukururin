@@ -595,7 +595,7 @@ void make_rotate_point(int rad_num) {
 	make_rotate_pointSS(r_segment_list[rad_num], r_segment_list[next_rad], rad_num);
 	make_rotate_pointSS(r_segment_beta_list[rad_num], r_segment_list[rad_num], rad_num);
 	make_rotate_pointSS(r_segment_beta_list[rad_num], r_segment_list[next_rad], rad_num);
-	make_rotate_pointSS(r_segment_beta_list[rad_num], r_segment_beta_list[next_rad], rad_num);
+	make_rotate_pointSS(r_segment_beta_list[rad_num], r_segment_beta_list[rad_num], rad_num);
 	make_rotate_pointSecS(r_sector_list[rad_num], r_segment_list[rad_num], rad_num);
 	make_rotate_pointSecS(r_sector_list[rad_num], r_segment_list[next_rad], rad_num);
 	make_rotate_pointSecS(r_sector_list[rad_num], r_segment_beta_list[rad_num], rad_num);
