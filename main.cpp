@@ -203,13 +203,14 @@ int contains(const vector<point>& Poly, const point& p) {
 	return in ? 2 : 0;
 }
 
-// 厳密に入っている時のみTrue
+// out: false
+// in, on: true
 bool contain_sector(const sector &sec, point &p){
 	if(abs(p - sec.o) + EPS > sec.r)return false;
 	point vec = p - sec.o;
 	point vecA = sec.a - sec.o;
 	point vecB = sec.b - sec.o;
-	if(angle(vec, vecA) < angle(vecA, vecB) && angle(vec, vecB) < angle(vecA, vecB))return true;
+	if(angle(vec, vecA) + EPS < angle(vecA, vecB) && angle(vec, vecB) + EPS < angle(vecA, vecB))return true;
 	return false;
 }
 
