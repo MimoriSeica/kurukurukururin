@@ -691,57 +691,6 @@ int Dijkstra() {
 	return ret;
 }
 
-void output_visible_graph() {
-	cout << r << endl;
-	REP(rad_num, r){
-		int m = r_point_list[rad_num].size();
-		cout << m << endl;
-		REP(i, m){
-			auto p = r_point_list[rad_num][i].FI;
-			bool flag = can_rotate(p, rad_num);
-			cout << p.real() << " " << p.imag() << " " << flag << endl;
-		}
-		m = r_segment_list[rad_num].size();
-		cout << m << endl;
-		REP(i, m){
-			segment seg = r_segment_list[rad_num][i];
-			cout << seg[0].real() << " " << seg[0].imag() << " " << seg[1].real() << " " << seg[1].imag() << endl;
-		}
-		m = r_segment_list[(rad_num + 1) % r].size();
-		cout << m << endl;
-		REP(i, m){
-			segment seg = r_segment_list[(rad_num + 1) % r][i];
-			cout << seg[0].real() << " " << seg[0].imag() << " " << seg[1].real() << " " << seg[1].imag() << endl;
-		}
-		m = r_sector_list[rad_num].size();
-		cout << 2 * m << endl;
-		REP(i, m){
-			auto sec = r_sector_list[rad_num][i];
-			cout << sec.o.real() << " " << sec.o.imag() << " " << sec.a.real() << " " << sec.a.imag() << endl;
-			cout << sec.o.real() << " " << sec.o.imag() << " " << sec.b.real() << " " << sec.b.imag() << endl;
-		}
-		vector<segment> g;
-		REP(i, r_point_list[rad_num].size()){
-			auto p_a = r_point_list[rad_num][i].FI;
-			auto id_a = r_point_list[rad_num][i].SE;
-			REP(j, i){
-				auto p_b = r_point_list[rad_num][j].FI;
-				auto id_b = r_point_list[rad_num][j].SE;
-				if(check_visible(p_a, p_b, rad_num)){
-					g.EB(p_a, p_b);
-				}
-			}
-		}
-		m = g.size();
-		cout << m << endl;
-		REP(i, m){
-			segment seg = g[i];
-			cout << seg[0].real() << " " << seg[0].imag() << " " << seg[1].real() << " " << seg[1].imag() << endl;
-		}
-	}
-	exit(0);
-}
-
 int main(){
 	cin.tie(0);cout.tie(0);ios::sync_with_stdio(false);
 	cin >> L >> r;L += EPS_GIG;
@@ -753,7 +702,6 @@ int main(){
 		double x1, y1, x2, y2;cin >> x1 >> y1 >> x2 >> y2;
 		seg_list.EB(point(x1, y1), point(x2, y2));
 	}
-	clock_t start = clock();
 
 	REP(i, r){
 		make_r_segment_list_square_list(i);
@@ -769,18 +717,11 @@ int main(){
 		make_rotate_point(i);
 	}
 
-	//output_visible_graph();
-
-	//cout << "point_size " << point_size << endl;
-
 	REP(i, point_size)dist[i] = INF;
 	dist[0] = 0;
 	int ans = Dijkstra();
 
 	if(ans == INF)cout << -1 << endl;
 	else cout << ans << endl;
-	clock_t end = clock();
-	double time = static_cast<double>(end - start) / CLOCKS_PER_SEC * 1000.0;
-	//cout << "time " << time << endl;
 	return 0;
 }
